@@ -37,6 +37,11 @@ final public class PopupDialogContainerView: UIView {
         get { return container.backgroundColor }
         set { container.backgroundColor = newValue }
     }
+    
+    /// Alias method for `cornerRadius` variable to avoid ambiguity.
+    @objc public dynamic func setupCornerRadius(_ radius: Float) {
+        self.cornerRadius = radius
+    }
 
     /// The corner radius of the popup view
     @objc public dynamic var cornerRadius: Float {

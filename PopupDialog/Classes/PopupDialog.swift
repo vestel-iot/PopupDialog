@@ -217,11 +217,6 @@ final public class PopupDialog: UIViewController {
         removeObservers()
     }
 
-    deinit {
-        completion?()
-        completion = nil
-    }
-
     // MARK: - Dismissal related
 
     @objc fileprivate func handleTap(_ sender: UITapGestureRecognizer) {
@@ -237,6 +232,10 @@ final public class PopupDialog: UIViewController {
      */
     @objc public func dismiss(_ completion: (() -> Void)? = nil) {
         self.dismiss(animated: true) {
+            // Call external completion
+            self.completion?()
+            
+            // Call dismissal completion
             completion?()
         }
     }
