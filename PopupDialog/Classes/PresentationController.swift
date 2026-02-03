@@ -41,7 +41,6 @@ final internal class PresentationController: UIPresentationController {
     private func createBlurredSnapshot(from view: UIView, blurRadius: CGFloat) -> UIImage? {
         view.layoutIfNeeded()
         
-        // Use UIGraphicsImageRenderer for more reliable snapshot
         let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
         let image = renderer.image { context in
             view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
@@ -55,7 +54,6 @@ final internal class PresentationController: UIPresentationController {
         guard let outputImage = filter?.outputImage else { return image }
         
         let context = CIContext(options: nil)
-        // Crop to original bounds (blur extends beyond original bounds)
         let croppedImage = outputImage.cropped(to: ciImage.extent)
         guard let cgImage = context.createCGImage(croppedImage, from: croppedImage.extent) else { return image }
         return UIImage(cgImage: cgImage)
@@ -75,11 +73,9 @@ final internal class PresentationController: UIPresentationController {
     override func presentationTransitionWillBegin() {
         guard let containerView = containerView else { return }
         
-        // Clean up any existing blur image view
         blurredImageView?.removeFromSuperview()
         blurredImageView = nil
         
-        // Find the actual visible view controller that should be blurred
         var targetView: UIView?
         
         if let navController = presentingViewController as? UINavigationController,
@@ -103,7 +99,6 @@ final internal class PresentationController: UIPresentationController {
             }
         }
         
-        // Add dimming overlay on top
         overlay.frame = containerView.bounds
         containerView.addSubview(overlay)
         
@@ -117,12 +112,17 @@ final internal class PresentationController: UIPresentationController {
     }
 
     override func dismissalTransitionWillBegin() {
-        presentedViewController.transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
+        guard let coordinator = presentedViewController.transitionCoordinator else { return }
+        
+        coordinator.animate(alongsideTransition: { [weak self] _ in
             self?.overlay.alpha = 0.0
-        }, completion: { [weak self] _ in
-            // Clean up resources when dismissed
-            self?.blurredImageView?.removeFromSuperview()
-            self?.blurredImageView = nil
+        }, completion: { [weak self] context in
+            if context.isCancelled {
+                self?.overlay.alpha = 1.0
+            } else {
+                self?.blurredImageView?.removeFromSuperview()
+                self?.blurredImageView = nil
+            }
         })
     }
 
