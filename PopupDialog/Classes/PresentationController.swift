@@ -39,14 +39,13 @@ final internal class PresentationController: UIPresentationController {
     }
     
     private func createBlurredSnapshot(from view: UIView, blurRadius: CGFloat) -> UIImage? {
-        // Render the view to an image
-        UIGraphicsBeginImageContextWithOptions(view.bounds.size, false, 0)
-        view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
-        guard let image = UIGraphicsGetImageFromCurrentImageContext() else {
-            UIGraphicsEndImageContext()
-            return nil
+        view.layoutIfNeeded()
+        
+        // Use UIGraphicsImageRenderer for more reliable snapshot
+        let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
+        let image = renderer.image { context in
+            view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
         }
-        UIGraphicsEndImageContext()
         
         guard let ciImage = CIImage(image: image) else { return image }
         let filter = CIFilter(name: "CIGaussianBlur")
@@ -59,18 +58,47 @@ final internal class PresentationController: UIPresentationController {
         // Crop to original bounds (blur extends beyond original bounds)
         let croppedImage = outputImage.cropped(to: ciImage.extent)
         guard let cgImage = context.createCGImage(croppedImage, from: croppedImage.extent) else { return image }
-        
         return UIImage(cgImage: cgImage)
     }
 
+    private func keyWindow() -> UIWindow? {
+        if #available(iOS 13.0, *) {
+            return UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }
+        } else {
+            return UIApplication.shared.keyWindow
+        }
+    }
+    
     override func presentationTransitionWillBegin() {
         guard let containerView = containerView else { return }
         
-        if let presentingView = presentingViewController.view {
+        // Clean up any existing blur image view
+        blurredImageView?.removeFromSuperview()
+        blurredImageView = nil
+        
+        // Find the actual visible view controller that should be blurred
+        var targetView: UIView?
+        
+        if let navController = presentingViewController as? UINavigationController,
+           let topViewController = navController.topViewController {
+            targetView = topViewController.view
+        } else if let tabController = presentingViewController as? UITabBarController,
+                  let selectedViewController = tabController.selectedViewController {
+            targetView = selectedViewController.view
+        } else {
+            targetView = presentingViewController.view
+        }
+        
+        let snapshotSourceView = keyWindow() ?? targetView
+        
+        if let presentingView = snapshotSourceView {
             if let blurredImage = createBlurredSnapshot(from: presentingView, blurRadius: 12) {
                 blurredImageView = UIImageView(image: blurredImage)
                 blurredImageView?.frame = containerView.bounds
-                blurredImageView?.contentMode = .scaleAspectFill
+                blurredImageView?.contentMode = .scaleToFill
                 containerView.addSubview(blurredImageView!)
             }
         }
@@ -91,7 +119,11 @@ final internal class PresentationController: UIPresentationController {
     override func dismissalTransitionWillBegin() {
         presentedViewController.transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
             self?.overlay.alpha = 0.0
-        }, completion: nil)
+        }, completion: { [weak self] _ in
+            // Clean up resources when dismissed
+            self?.blurredImageView?.removeFromSuperview()
+            self?.blurredImageView = nil
+        })
     }
 
     override func containerViewWillLayoutSubviews() {
