@@ -32,6 +32,10 @@ final internal class PresentationController: UIPresentationController {
         return PopupDialogOverlayView(frame: .zero)
     }()
 
+    override var shouldRemovePresentersView: Bool {
+        return false
+    }
+
     override func presentationTransitionWillBegin() {
         
         guard let containerView = containerView else { return }
@@ -55,7 +59,9 @@ final internal class PresentationController: UIPresentationController {
         guard let presentedView = presentedView else { return }
 
         presentedView.frame = frameOfPresentedViewInContainerView
-        overlay.blurView.refresh()
+        let currentEffect = overlay.blurView.effect
+        overlay.blurView.effect = nil
+        overlay.blurView.effect = currentEffect
     }
 
 }

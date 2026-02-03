@@ -165,6 +165,9 @@ final public class PopupDialogContainerView: UIView {
 
     internal func setupViews() {
 
+        isOpaque = false
+        super.backgroundColor = .clear
+
         // Add views
         addSubview(shadowContainer)
         shadowContainer.addSubview(container)
