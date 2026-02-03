@@ -24,7 +24,6 @@
 //
 
 import Foundation
-import DynamicBlurView
 import UIKit
 
 /// The (blurred) overlay view below the popup dialog
@@ -40,20 +39,16 @@ final public class PopupDialogOverlayView: UIView {
     
     /// The blur radius of the overlay view
     @objc public dynamic var blurRadius: CGFloat {
-        get { return blurView.blurRadius }
-        set { blurView.blurRadius = newValue }
+        get { return _blurRadius }
+        set { _blurRadius = newValue }
     }
     
     /// Whether the blur view should allow for
     /// live rendering of the background
     @objc public dynamic var liveBlurEnabled: Bool {
-        get { return blurView.trackingMode == .common }
+        get { return _liveBlurEnabled }
         set {
-            if newValue {
-                blurView.trackingMode = .common
-            } else {
-                blurView.trackingMode = .none
-            }
+            _liveBlurEnabled = newValue
         }
     }
     
@@ -71,12 +66,12 @@ final public class PopupDialogOverlayView: UIView {
 
     // MARK: - Views
 
-    internal lazy var blurView: DynamicBlurView = {
-        let blurView = DynamicBlurView(frame: .zero)
-        blurView.blurRadius = 8
-        blurView.trackingMode = .none
-        blurView.isDeepRendering = true
-        blurView.tintColor = .clear
+    private var _blurRadius: CGFloat = 8
+    private var _liveBlurEnabled: Bool = false
+
+    internal lazy var blurView: UIVisualEffectView = {
+        let blurEffect = UIBlurEffect(style: .regular)
+        let blurView = UIVisualEffectView(effect: blurEffect)
         blurView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         return blurView
     }()
@@ -84,7 +79,7 @@ final public class PopupDialogOverlayView: UIView {
     internal lazy var overlay: UIView = {
         let overlay = UIView(frame: .zero)
         overlay.backgroundColor = .black
-        overlay.alpha = 0.7
+        overlay.alpha = 0.15
         overlay.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         return overlay
     }()
@@ -108,8 +103,19 @@ final public class PopupDialogOverlayView: UIView {
         backgroundColor = .clear
         alpha = 0
 
-        addSubview(blurView)
+        // Blur is now handled by CIFilter in PresentationController
+        // Only add the dimming overlay
         addSubview(overlay)
+        
+        // Hide blurView by default since we use CIFilter blur now
+        blurView.isHidden = true
+        blurEnabled = false
+    }
+
+    override public func layoutSubviews() {
+        super.layoutSubviews()
+        blurView.frame = bounds
+        overlay.frame = bounds
     }
 
 }
