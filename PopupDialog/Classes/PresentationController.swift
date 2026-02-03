@@ -31,18 +31,58 @@ final internal class PresentationController: UIPresentationController {
     private lazy var overlay: PopupDialogOverlayView = {
         return PopupDialogOverlayView(frame: .zero)
     }()
+    
+    private var blurredImageView: UIImageView?
 
     override var shouldRemovePresentersView: Bool {
         return false
     }
+    
+    private func createBlurredSnapshot(from view: UIView, blurRadius: CGFloat) -> UIImage? {
+        // Render the view to an image
+        UIGraphicsBeginImageContextWithOptions(view.bounds.size, false, 0)
+        view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
+        guard let image = UIGraphicsGetImageFromCurrentImageContext() else {
+            UIGraphicsEndImageContext()
+            return nil
+        }
+        UIGraphicsEndImageContext()
+        
+        guard let ciImage = CIImage(image: image) else { return image }
+        let filter = CIFilter(name: "CIGaussianBlur")
+        filter?.setValue(ciImage, forKey: kCIInputImageKey)
+        filter?.setValue(blurRadius, forKey: kCIInputRadiusKey)
+        
+        guard let outputImage = filter?.outputImage else { return image }
+        
+        let context = CIContext(options: nil)
+        // Crop to original bounds (blur extends beyond original bounds)
+        let croppedImage = outputImage.cropped(to: ciImage.extent)
+        guard let cgImage = context.createCGImage(croppedImage, from: croppedImage.extent) else { return image }
+        
+        return UIImage(cgImage: cgImage)
+    }
 
     override func presentationTransitionWillBegin() {
-        
         guard let containerView = containerView else { return }
         
+        if let presentingView = presentingViewController.view {
+            if let blurredImage = createBlurredSnapshot(from: presentingView, blurRadius: 1) {
+                blurredImageView = UIImageView(image: blurredImage)
+                blurredImageView?.frame = containerView.bounds
+                blurredImageView?.contentMode = .scaleAspectFill
+                containerView.addSubview(blurredImageView!)
+            }
+        }
+        
+        // Add dimming overlay on top
         overlay.frame = containerView.bounds
-        containerView.insertSubview(overlay, at: 0)
-
+        containerView.addSubview(overlay)
+        
+        if let presentedView = presentedView {
+            containerView.addSubview(presentedView)
+        }
+        
         presentedViewController.transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
             self?.overlay.alpha = 1.0
         }, completion: nil)
@@ -57,11 +97,10 @@ final internal class PresentationController: UIPresentationController {
     override func containerViewWillLayoutSubviews() {
 
         guard let presentedView = presentedView else { return }
-
+        
         presentedView.frame = frameOfPresentedViewInContainerView
-        let currentEffect = overlay.blurView.effect
-        overlay.blurView.effect = nil
-        overlay.blurView.effect = currentEffect
+        overlay.frame = containerView?.bounds ?? .zero
+        blurredImageView?.frame = containerView?.bounds ?? .zero
     }
 
 }

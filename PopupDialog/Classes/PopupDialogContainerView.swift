@@ -167,6 +167,10 @@ final public class PopupDialogContainerView: UIView {
 
         isOpaque = false
         super.backgroundColor = .clear
+        self.layer.backgroundColor = UIColor.clear.cgColor // Force transparent background
+        
+        // Ensure the inner container has a white background for the popup card
+        container.backgroundColor = .white
 
         // Add views
         addSubview(shadowContainer)
