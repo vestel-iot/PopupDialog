@@ -67,7 +67,7 @@ final internal class PresentationController: UIPresentationController {
         guard let containerView = containerView else { return }
         
         if let presentingView = presentingViewController.view {
-            if let blurredImage = createBlurredSnapshot(from: presentingView, blurRadius: 1) {
+            if let blurredImage = createBlurredSnapshot(from: presentingView, blurRadius: 12) {
                 blurredImageView = UIImageView(image: blurredImage)
                 blurredImageView?.frame = containerView.bounds
                 blurredImageView?.contentMode = .scaleAspectFill
